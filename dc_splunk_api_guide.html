@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Splunk REST API: Quick Reference By iOpsmon </title>
+  <style>
+    :root{
+      --bg:#0f1720; --card:#0b1220; --muted:#94a3b8; --accent:#10b981;
+      --panel:#071022; --code-bg:#07121a; --glass:rgba(255,255,255,0.03);
+      --maxw:1100px;
+    }
+    html,body{height:100%}
+    body{
+      margin:0; font-family:Inter,Segoe UI,Arial, sans-serif;
+      background:linear-gradient(180deg,#071023 0%, #071827 100%); color:#e6eef6;
+      -webkit-font-smoothing:antialiased;
+    }
+    .wrap{max-width:var(--maxw);margin:28px auto;padding:20px;}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    header h1{margin:0;font-size:20px;letter-spacing:0.2px}
+    header p{margin:0;color:var(--muted);font-size:13px}
+
+    .layout{display:grid;grid-template-columns:260px 1fr;gap:18px}
+    nav{background:var(--card);border-radius:10px;padding:14px;height:calc(100vh - 140px);overflow:auto;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    nav h3{margin:0 0 10px 0;color:var(--accent);font-size:13px}
+    .toc a{display:block;padding:8px 10px;border-radius:6px;color:#cfe8dd;text-decoration:none;font-size:14px;margin-bottom:6px}
+    .toc a:hover{background:var(--glass);color:#fff}
+
+    main{background:transparent;min-height:80vh}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); padding:16px;border-radius:10px;margin-bottom:16px;box-shadow:0 4px 18px rgba(2,6,23,0.5)}
+    .card h2{margin:0 0 8px 0;color:#fff;font-size:16px}
+    .card p.lead{margin:0 0 12px 0;color:var(--muted);font-size:13px}
+
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .mini{flex:1 1 280px;background:var(--panel);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+    .mini small{color:var(--muted)}
+
+    pre.code{background:var(--code-bg);padding:12px;border-radius:8px;overflow:auto;border:1px solid rgba(255,255,255,0.03);font-size:13px;line-height:1.4}
+    .code-toolbar{display:flex;justify-content:flex-end;margin-bottom:6px;gap:8px}
+    .btn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:6px 8px;border-radius:6px;font-size:12px;cursor:pointer}
+    .btn:hover{color:#fff;border-color:rgba(255,255,255,0.08)}
+    .status{display:inline-block;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.02);color:var(--muted);font-size:12px}
+
+    table.ref{width:100%;border-collapse:collapse;margin-top:10px}
+    table.ref th, table.ref td{border:1px solid rgba(255,255,255,0.04);padding:8px;text-align:left;font-size:13px}
+    table.ref th{background:#0b1a26;color:var(--muted);font-weight:600}
+
+    footer{margin-top:12px;color:var(--muted);font-size:12px}
+    @media(max-width:900px){ .layout{grid-template-columns:1fr} nav{height:auto} }
+
+    /* highlight new / important */
+    .note{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border-left:4px solid var(--accent);padding:8px;border-radius:6px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Splunk REST API Quick Reference By iOpsMon</h1>
+        <p>Snapshots, config checks and example REST SPL. Copy queries with one click.</p>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div class="status">Intended audience: Splunk Admins</div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav>
+        <h3>Contents</h3>
+        <div class="toc">
+          <a href="#config">Config</a>
+          <a href="#resources">Resource Usage</a>
+          <a href="#storage">Storage & Indexes</a>
+          <a href="#search">Search & Saved Searches</a>
+          <a href="#apps">Splunk Apps</a>
+          <a href="#access">Access & Tokens</a>
+          <a href="#deployment">Deployment & Clients</a>
+          <a href="#utils">Utilities / Helpers</a>
+        </div>
+
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+
+        <div class="note">
+          Best practice: run queries from a Search Head or the Monitoring Console and export CSV for historical analysis.
+        </div>
+      </nav>
+
+      <main>
+        <!-- Config -->
+        <section id="config" class="card">
+          <h2>Config Checks</h2>
+          <p class="lead">Quick REST queries to validate system.</p>
+
+          <div class="code-toolbar">
+            <button class="btn" data-copy-target="#cfg1">Copy</button>
+            <button class="btn" onclick="toggle('#cfg1')">Toggle</button>
+          </div>
+          <pre id="cfg1" class="code" style="display:block">
+| rest splunk_server=local /services/server/sysinfo
+| fields cpu_arch, os_name, os_version, numberOfCores, physicalMemoryMB, splunk_server, transparent_hugepages.enabled, ulimits.open_files
+| table splunk_server, os_name, os_version, numberOfCores, physicalMemoryMB, transparent_hugepages.enabled, ulimits.open_files
+          </pre>
+
+          <div style="margin-top:10px;">
+            <strong>Notes:</strong>
+            <ul style="color:var(--muted);margin:6px 0 0 18px">
+              <li>Check THP = never and ulimits for open files & processes.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- Resources -->
+        <section id="resources" class="card">
+          <h2>Resource Usage</h2>
+          <p class="lead">Hostwide and Splunk process level metrics.</p>
+
+          <div class="row">
+            <div class="mini">
+              <strong>Hostwide</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res1">Copy</button>
+              </div>
+              <pre id="res1" class="code">
+| rest splunk_server=* /services/server/status/resource-usage/hostwide
+| fields splunk_server, cpu_count, cpu_idle_pct, mem, mem_used, normalized_load_avg_1min, swap_used
+| table splunk_server, cpu_count, cpu_idle_pct, mem, mem_used, normalized_load_avg_1min, swap_used
+              </pre>
+            </div>
+
+            <div class="mini">
+              <strong>Splunk Processes</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res2">Copy</button>
+              </div>
+              <pre id="res2" class="code">
+| rest splunk_server=* /services/server/status/resource-usage/splunk-processes
+| fields splunk_server, process, mem_used, pct_cpu, pct_memory, pid
+| eval cpu_flag = if(pct_cpu >= 80, "high", "ok")
+| table splunk_server, process, pct_cpu, cpu_flag, pct_memory, mem_used
+              </pre>
+            </div>
+          </div>
+          <div class="mini">
+              <strong>CPU Idle And Memory Check</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res3">Copy</button>
+              </div>
+              <pre id="res3" class="code">
+| rest splunk_server=* /services/server/status/resource-usage/hostwide 
+| fields splunk_server, splunk_version, cpu_arch, cpu_count, cpu_idle_pct, 
+cpu_system_pct, cpu_user_pct, mem, mem_used, normalized_load_avg_1min, 
+os_name, os_version,swap, swap_used, virtual_cpu_count 
+| eval cpu_idle_pct_check = case(cpu_idle_pct <=20, "cpu_is_high", 1=1,"cpu_is_low") 
+| eval available_memory_mb = mem-mem_used 
+| eval available_memory_percent = (available_memory_mb / mem) * 100 
+| eval mem_available_check = if(available_memory_percent < 10, "memory_low", "memory_good") 
+| table splunk_server, cpu_idle_pct_check, mem_available_check, available_memory_mb, 
+mem, mem_used, available_memory_percent 
+ ```This SPL REST checks to see if the CPU Idle status and Memory Usage of the 
+ Splunk instance, if the idle is lower than 20%, it will be flagged as low 
+ If the available memory is loweer than 10% of the total amount, it will be flagged as memory low```
+              </pre>
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- Storage -->
+        <section id="storage" class="card">
+          <h2>Storage / Indexes</h2>
+          <p class="lead">Indexes sizes, retention and growth estimates.</p>
+
+          <div class="code-toolbar">
+            <button class="btn" data-copy-target="#idx1">Copy</button>
+          </div>
+          <pre id="idx1" class="code">
+| rest splunk_server=* /services/data/indexes-extended
+| fields splunk_server, title, total_size, currentDBSizeMB, frozenTimePeriodInSecs
+| eval retention_days = frozenTimePeriodInSecs/86400
+| table splunk_server, title, total_size, currentDBSizeMB, retention_days
+          </pre>
+
+          <p style="color:var(--muted);margin-top:8px">Tip: run every 10 minutes and store CSVs to estimate growth trends.</p>
+        </section>
+
+        <!-- Search -->
+        <section id="search" class="card">
+          <h2>Search / Saved Searches</h2>
+          <p class="lead">Identify heavy saved searches and index=* usage.</p>
+
+          <div class="code-toolbar">
+            <button class="btn" data-copy-target="#s1">Copy</button>
+            <button class="btn" data-copy-target="#s2">Copy all</button>
+          </div>
+
+          <pre id="s1" class="code">
+| rest splunk_server=* /services/saved/searches
+| fields splunk_server, title, author, disabled, search, eai:acl.app
+| table splunk_server, title, author, disabled, eai:acl.app
+          </pre>
+
+          <pre id="s2" class="code">
+| rest splunk_server=* /services/saved/searches
+| fields title, search
+| rex field=search "(?&lt;index_used&gt;index\s*=\s*[^ \|]+)"
+| table title, index_used
+          </pre>
+        </section>
+
+
+  <!-- New "Splunk Apps" section (insert after the Search section) -->
+  <section id="apps" class="card">
+    <h2>Splunk Apps</h2>
+    <p class="lead">List installed Splunk apps and basic metadata.</p>
+
+    <div class="code-toolbar">
+      <button class="btn" data-copy-target="#apps1">Copy</button>
+      <button class="btn" onclick="toggle('#apps1')">Toggle</button>
+    </div>
+
+    <pre id="apps1" class="code" style="display:block">
+| rest splunk_server=* /services/apps/local
+| table author, check_for_updates, configured, description, details, disabled, label, state_change_requires_restart, version, visible
+| eval disabled = if(disabled==1, "disabled", "enabled")
+    </pre>
+
+    <div style="margin-top:10px;color:var(--muted)">
+      Note: Run from a Search Head or the Monitoring Console. Use <code>| outputcsv</code> to capture results for review.
+    </div>
+  </section>
+
+                              
+
+
+        <!-- Access -->
+        <section id="access" class="card">
+          <h2>Access & Tokens</h2>
+          <p class="lead">Quick checks for users, roles and auth tokens.</p>
+
+          <div class="code-toolbar"><button class="btn" data-copy-target="#a1">Copy</button></div>
+          <pre id="a1" class="code">
+| rest splunk_server=* /services/authentication/users
+| fields title, roles, last_successful_login, type, splunk_server
+| table splunk_server, title, roles, last_successful_login, type
+          </pre>
+
+          <div style="margin-top:8px;color:var(--muted)">
+            Review inactive admin users and tokens regularly.
+          </div>
+        </section>
+
+        <!-- Deployment -->
+        <section id="deployment" class="card">
+          <h2>Deployment / Monitoring</h2>
+          <p class="lead">Deployment clients and phone-home checks.</p>
+
+          <div class="code-toolbar"><button class="btn" data-copy-target="#d1">Copy</button></div>
+          <pre id="d1" class="code">
+| rest splunk_server=* /services/deployment/server/clients
+| fields hostname, lastPhoneHomeTime, splunkVersion, ip
+| fieldformat "lastPhoneHomeTime"=strftime('lastPhoneHomeTime', "%c")
+| eval status = if(lastPhoneHomeTime &lt; (now() - 900), "missing", "active")
+| table hostname, status, lastPhoneHomeTime, splunkVersion, ip
+          </pre>
+        </section>
+
+        <!-- Utilities -->
+        <section id="utils" class="card">
+          <h2>Utilities & Export</h2>
+          <p class="lead">Exporting results & recommended cadence.</p>
+
+          <table class="ref">
+            <thead><tr><th>Action</th><th>Recommendation</th></tr></thead>
+            <tbody>
+              <tr><td>Run frequency</td><td>10 minutes for operational snapshot; hourly for trends</td></tr>
+              <tr><td>Export</td><td>Use | outputcsv / local storage, send to index for historical analysis</td></tr>
+              <tr><td>Where to run</td><td>Monitoring Console or Search Head for best coverage</td></tr>
+            </tbody>
+          </table>
+
+        </section>
+
+        <footer>
+          <div>Generated: <strong><span id="genTime"></span></strong> — Keep this page as a quick reference. Copy the SPL above and paste into the Splunk Search bar.</div>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // fill time
+    document.getElementById('genTime').textContent = new Date().toLocaleString();
+
+    // copy buttons handler
+    document.querySelectorAll('button[data-copy-target]').forEach(btn=>{
+      btn.addEventListener('click', async ()=> {
+        const sel = document.querySelector(btn.dataset.copyTarget);
+        if(!sel) return;
+        const text = sel.innerText.trim();
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = 'Copied';
+          setTimeout(()=> btn.textContent = 'Copy', 1200);
+        } catch(e) {
+          alert('Copy failed. Select and copy manually.');
+        }
+      });
+    });
+
+    // toggle pre blocks
+    function toggle(id){
+      const el = document.querySelector(id);
+      if(!el) return;
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+    window.toggle = toggle;
+  </script>
+</body>
+</html>
