@@ -72,7 +72,7 @@
           <a href="#config">Config</a>
           <a href="#resources">Resource Usage</a>
           <a href="#storage">Storage & Indexes</a>
-          <a href="#search">Search & Saved Searches</a>
+          <a href="#search">Search & Saved Searches</a>          
           <a href="#apps">Splunk Apps</a>
           <a href="#access">Access & Tokens</a>
           <a href="#deployment">Deployment & Clients</a>
@@ -108,6 +108,25 @@
               <li>Check THP = never and ulimits for open files & processes.</li>
             </ul>
           </div>
+
+          <div class="row">
+            <div class="mini">
+              <strong>List Splunk Info</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#cfg2">Copy</button>
+              </div>
+              <pre id="cfg2" class="code">
+| rest splunk_server=* /services/server/settings 
+| fields SPLUNK_DB, SPLUNK_HOME, appServerPorts, author, dataFederationDisabled, enableSplunkWebSSL, 
+host, host_resolved, httpport, kvStoreDisabled, kvStorePort, mgmtHostPort, minFreeSpace, pass4SymmKey, 
+python.version, serverName, sessionTimeout, splunk_server, startwebserver | table splunk_server, 
+SPLUNK_DB, SPLUNK_HOME, appServerPorts, author, dataFederationDisabled, enableSplunkWebSSL, host, 
+host_resolved, httpport, kvStoreDisabled, kvStorePort, mgmtHostPort, minFreeSpace, pass4SymmKey, 
+python.version, serverName, sessionTimeout, startwebserver 
+              </pre>
+            </div>
+
+
         </section>
 
         <!-- Resources -->
@@ -140,8 +159,7 @@
 | table splunk_server, process, pct_cpu, cpu_flag, pct_memory, mem_used
               </pre>
             </div>
-          </div>
-          <div class="mini">
+                    <div class="mini">
               <strong>CPU Idle And Memory Check</strong>
               <div class="code-toolbar" style="margin-top:8px">
                 <button class="btn" data-copy-target="#res3">Copy</button>
@@ -161,9 +179,158 @@ mem, mem_used, available_memory_percent
  Splunk instance, if the idle is lower than 20%, it will be flagged as low 
  If the available memory is loweer than 10% of the total amount, it will be flagged as memory low```
               </pre>
-            </div>
-          </div>
+            </div>  
 
+      <div class="mini">
+              <strong>This checks the Disk IO/stats for latency</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res4">Copy</button>
+              </div>
+              <pre id="res4" class="code">
+| rest splunk_server=* /services/server/status/resource-usage/iostats 
+| fields splunk_server, avg_service_ms,avg_total_ms, cpu_pct, device, fs_type, 
+interval, mount_point.0, mount_point.1,reads_kb_ps, reads_ps, title, writes_kb_ps, writes_ps 
+| table splunk_server, avg_service_ms,avg_total_ms, cpu_pct, device, fs_type, 
+interval, mount_point.0, mount_point.1, reads_kb_ps, reads_ps, title, writes_kb_ps, writes_ps 
+```avg_service_ms: Average time requests caused the CPU to be in use, in milliseconds. avg_total_ms:
+ Average queue + execution time for requests to be completed, in milliseconds. cpu_pct: 
+ Percentage of time the CPU was servicing requests. device: Device name (e.g., as listed under /dev on UNIX). 
+ fs_type: Mounted device file system type. interval: Interval over which sampling occurred, in seconds. 
+ mount_point: Mount point(s) of the underlying device. reads_kb_ps: Total number of kb read per second. 
+ reads_ps: Number of read requests per second. writes_kb_ps: Total number of kb written per second. writes_ps: 
+ Number of write requests per second.``` 
+ ``` If avg_service_ms,avg_total_ms = 20 then we have an issue to look at ```
+  ```Install iostat (sysstat package in RedHat) and analyse```
+              </pre>
+            </div>  
+
+    <div class="mini">
+              <strong>This is to check the average ms is not high than 20ms</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res5">Copy</button>
+              </div>
+              <pre id="res5" class="code">
+| rest splunk_server=* /services/server/status/resource-usage/iostats 
+| fields splunk_server, avg_service_ms 
+| eval avg_service_ms_check = case(avg_service_ms >=20, "high_ms",1=1, "low_ms") 
+| table splunk_server, avg_service_ms_check, avg_service_ms 
+              </pre>
+            </div>              
+
+              <div class="mini">
+              <strong>This checks the Splunk process CPU/Memory usage trends</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res6">Copy</button>
+              </div>
+              <pre id="res6" class="code">
+| rest splunk_server=* /services/server/status/resource-usage/splunk-processes 
+| fields splunk_server, mem_used, pct_cpu, pct_memory, pid, process, process_type 
+| eval cpu_pct_check = case(pct_cpu >=80.00, "cpu_is_high_BAD", 1=1,"cpu_is_low_OK") 
+| eval mem_pct_check = case(pct_memory >=80.00, "memory_is_high_BAD", 1=1,"memory_is_low_OK") 
+| table splunk_server, process, process_type,cpu_pct_check, mem_pct_check , mem_used, pct_cpu, pct_memory, pid 
+| sort - mem_used 
+              </pre>
+              </div>
+
+              <div class="mini">
+              <strong>This gets the list off indexes and the config</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res7">Copy</button>
+              </div>
+              <pre id="res7" class="code">
+| rest splunk_server=* /services/data/indexes-extended/ datatype=all 
+| fields splunk_server, title, eai:acl.app, total_raw_size, total_size, homePath, homePath.maxDataSizeMB, coldPath, coldPath.maxDataSizeMB, coldPath_expanded,
+ coldToFrozenDir, coldToFrozenScript, compressRawdata, currentDBSizeMB, datatype, disabled, enableTsidxReduction, 
+ frozenTimePeriodInSecs, frozenTimePeriodInDays, maxDataSize, maxGlobalDataSizeMB, maxGlobalRawDataSizeMB, maxHotBuckets, maxHotIdleSecs, 
+ maxHotSpanSecs, maxTotalDataSizeMB, maxWarmDBCount, repFactor, summaryHomePath_expanded, thawedPath, thawedPath_expanded, 
+ totalEventCount, tstatsHomePath 
+ | eval frozenTimePeriodInDays = frozenTimePeriodInSecs/86400 
+ | sort - total_size 
+ ```This data is collected every 10 minutes```
+  ```Go by the total_size on disk or currentDBSizeMB as an approx - its moving target ``` 
+              </pre>
+              </div>
+
+
+             <div class="mini">
+              <strong>This is an estimates on growth</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res8">Copy</button>
+              </div>
+              <pre id="res8" class="code">
+| rest splunk_server=* /services/data/indexes-extended/ datatype=all 
+| fields splunk_server, title, total_size, frozenTimePeriodInSecs 
+| eval total_size_mb = total_size
+ ```Convert total size to megabytes``` 
+| eval retention_days = frozenTimePeriodInSecs / 86400 
+```Convert retention period from seconds to days``` 
+| eval growth_per_day_mb = total_size_mb / retention_days
+ ```Calculate growth per day in megabytes``` 
+| table splunk_server, title, total_size_mb, retention_days, growth_per_day_mb 
+| addcoltotals *growth_per_day_mb *total_size_mb  
+              </pre>
+              </div>
+
+              <div class="mini">
+              <strong>This is bucket checks</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res9">Copy</button>
+              </div>
+              <pre id="res9" class="code">
+| rest splunk_server=* /services/data/indexes-extended/ datatype=all
+ ```add indexers here``` 
+ | fields splunk_server, name total_bucket_count, total_size, maxDataSize, maxWarmDBCount, maxHotSpanSecs, 
+ bucket_dirs.home.hot_bucket_count, bucket_dirs.home.warm_bucket_count, bucket_dirs.home.warm_bucket_size, 
+ bucket_dirs.cold.capacity, bucket_dirs.home.capacity, bucket_dirs.home.event_count, bucket_dirs.home.event_max_time, 
+ bucket_dirs.home.event_min_time 
+ | eval maxHotSpanSecs_days = maxHotSpanSecs/86400 
+ | table splunk_server, name total_bucket_count, total_size, maxDataSize, maxWarmDBCount, maxHotSpanSecs, maxHotSpanSecs_days,
+  bucket_dirs.home.hot_bucket_count, bucket_dirs.home.warm_bucket_count, bucket_dirs.home.warm_bucket_size, 
+  bucket_dirs.cold.capacity, bucket_dirs.home.capacity, bucket_dirs.home.event_count, bucket_dirs.home.event_max_time, 
+  bucket_dirs.home.event_min_time 
+  | sort - total_bucket_count 
+  ```Once Splunk has created some maximum number of warm buckets(maxDataSize) OR (maxHotSpanSecs) which is time in hot OR (maxWarmDBCount),
+   it then begins to roll the warm buckets to cold based on their age. Always, the oldest warm bucket rolls to cold. 
+   Buckets continue to roll to cold as they age in this manner. After a set period of time, cold buckets roll to frozen, 
+   at which point they are either archived or deleted. indexes.conf maxDataSize = auto = 750MB (normally Ok) maxDataSize 
+   = auto_high_volume (If over 10GB per day- for high volume indexes) maxWarmDBCount = 300 (max number warm buckets 
+   - move to cold after this setting)```   
+              </pre>
+              </div>
+<div class="mini">
+              <strong>Summaries - Shows type and size of DMA and Reports</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res10">Copy</button>
+              </div>
+              <pre id="res10" class="code">
+ | rest splunk_server=* /services/data/summaries 
+ | fields splunk_server, type, name, related_indexes, search_head_guid, total_bucket_count, total_size 
+ | addcoltotals total_size* 
+              </pre>
+              </div>
+
+<div class="mini">
+              <strong>Partions Sizes</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#res11">Copy</button>
+              </div>
+              <pre id="res11" class="code">
+| rest splunk_server=* /services/server/status/partitions-space 
+| fields splunk_server, available, capacity, free, fs_type, mount_point 
+| eval available_GB = round(available/1024,2) 
+| eval capacity_GB = round(capacity/1024,2) 
+| eval free_GB = round(free/1024,2) 
+| eval used_GB = capacity_GB-free_GB 
+| eval GB_free_check = case(free_GB <=5.00, "GB_free_is_low", 1=1,"GB_free_is_high") 
+| table splunk_server, available, available_GB, capacity, capacity_GB, free, free_GB, used_GB, GB_free_check, 
+fs_type, mount_point 
+```This Code checks the partions on the Splunk Server and checks to see if the mount point is lower than 5GB, 
+if it is then its flagged under GB_free_check``` 
+              </pre>
+              </div>
+
+
+          </div>
         </section>
 
 
@@ -185,29 +352,130 @@ mem, mem_used, available_memory_percent
           <p style="color:var(--muted);margin-top:8px">Tip: run every 10 minutes and store CSVs to estimate growth trends.</p>
         </section>
 
-        <!-- Search -->
+
+
+        <!-- Search  -->
         <section id="search" class="card">
-          <h2>Search / Saved Searches</h2>
+          <h2>Search</h2>
           <p class="lead">Identify heavy saved searches and index=* usage.</p>
+          <p class="lead">Search Rest.</p>
 
-          <div class="code-toolbar">
-            <button class="btn" data-copy-target="#s1">Copy</button>
-            <button class="btn" data-copy-target="#s2">Copy all</button>
-          </div>
+          <div class="row">
+            <div class="mini">
+              <strong>Checks Search Concurrency.</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#search_1">Copy</button>
+               </div>
+              <pre id="search_1" class="code">
+| rest splunk_server=* /services/server/status/limits/search-concurrency 
+| fields splunk_server, max_auto_summary_searches, max_hist_scheduled_searches, max_hist_searches, 
+max_rt_scheduled_searches, max_rt_searches, title | stats max(max_auto_summary_searches), 
+max(max_hist_scheduled_searches), max(max_hist_searches), max(max_rt_scheduled_searches),max(max_rt_searches) BY title, splunk_server 
+```This REST search shows the max concurrency limits the Splunk instance can hit - 
+normally the SH - if there are more than this could cause skipped searches and skew results``` 
+              </pre>
+            </div>
 
-          <pre id="s1" class="code">
-| rest splunk_server=* /services/saved/searches
-| fields splunk_server, title, author, disabled, search, eai:acl.app
-| table splunk_server, title, author, disabled, eai:acl.app
-          </pre>
+<div class="mini">
+              <strong>Saved Searches List</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#search_2">Copy</button>
+              </div>
+              <pre id="search_2" class="code">
+| rest splunk_server=* /services/saved/searches 
+| fields splunk_server, author, title, disabled, eai:acl.app, eai:acl.owner, eai:acl.sharing, id, search 
+| rename title AS saved_search_name eai:acl.app AS app eai:acl.owner AS owner eai:acl.sharing AS sharing search AS spl_code 
+| eval is_enabled = case(disabled >=1, "disabled",1=1, "enabled") 
+| table splunk_server, author, saved_search_name, disabled, is_enabled, app, owner, sharing, spl_code  
+              </pre>
+            </div>  
+            
+<div class="mini">
+              <strong>This code checks to see if the SPL code in the saved searches uses = index=* etc or macros</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#search_3">Copy</button>
+              </div>
+              <pre id="search_3" class="code">
+| rest splunk_server=* /services/saved/searches 
+| fields disabled, eai:acl.app, search eai:acl.owner title 
+| rename eai:acl.app AS app search AS spl_code eai:acl.owner AS owner title AS saved_search_name 
+ | rex field=spl_code "(?&lt;index_used&gt;index\s*=\s*[^ ]+|index\s+IN|search\s*=\s*index=|search\s*=\s*inputlookup\s+in|index\s*=_\*)"
+| rex field=spl_code "(?&lt;macro_used&gt;\`[^ ]+\`)" 
+| eval index_used = if(isnull(index_used), "non_found",index_used) 
+| eval macro_used = if(isnull(macro_used), "non_found",macro_used) 
+| eval index_star_all_check = case(index_used ="index=*", "naughty_boy",1=1, "good_boy") 
+| table app, owner, index_star_all_check, index_used, macro_used, spl_code
+```Use the below to check if there are index=* etc being used - comment out the above table command``` 
+```| search index_star_all_check="naughty_boy"``` ```| stats count BY index_star_all_check app,
+saved_search_name, owner, index_used, spl_code``` 
+```This checks the SPL code for any index=*, if found it flag as will show naughty_boy```
+```This checks the SPL code for any macros used if found you will need to check the Macros 
+Check to find if any also using index=* - see next code check - some of this code will still use 
+index= further in the code - so check``` 
+```NOTE Some index=* may be used for good reasons, so you will need to further analyse and see 
+if its ok, and check if its enabled or disabled as well, index=* has a performance impact``` 
+```NOTE: This Search can take some time, so best to run during non business hours as you may have lots of searches```
+              </pre>
+            </div>             
 
-          <pre id="s2" class="code">
-| rest splunk_server=* /services/saved/searches
-| fields title, search
-| rex field=search "(?&lt;index_used&gt;index\s*=\s*[^ \|]+)"
-| table title, index_used
-          </pre>
-        </section>
+<div class="mini">
+              <strong>This lists all the alerts.</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#search_4">Copy</button>
+              </div>
+              <pre id="search_4" class="code">
+| rest splunk_server=* servicesNS/admin/-/alerts/alert_actions 
+| fields description, disabled, eai:acl.app, eai:acl.owner, splunk_server, title 
+| rename eai:acl.app AS app eai:acl.owner AS owner | eval description= if(isnull(description), "unknown",description) 
+| table splunk_server, title, description, app, owner, disabled
+              </pre>
+            </div>             
+<div class="mini">
+              <strong>Bundle Size Config</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#search_5">Copy</button>
+              </div>
+              <pre id="search_5" class="code">
+| rest splunk_server=* /services/search/distributed/bundle/replication/config 
+| fields author, concerningReplicatedFileSize, connectionTimeout, maxBundleSize, receiveTimeout, replicationPeriod, 
+replicationPolicy, replicationThreads, sendTimeout, splunk_server, statusQueueSize, title, warnMaxBundleSizePerc 
+| eval maxBundleSize_GB = round(maxBundleSize/1024/1024/1024, 2)
+| eval concerningReplicatedFileSize_GB = round(concerningReplicatedFileSize/1024/1024/1024, 2) 
+| eval maxBundleSize_MB = round(maxBundleSize/1024/1024, 2) 
+| eval concerningReplicatedFileSize_MB = round(concerningReplicatedFileSize/1024/1024, 2) 
+| table author, concerningReplicatedFileSize, concerningReplicatedFileSize_GB, concerningReplicatedFileSize_MB, 
+connectionTimeout, maxBundleSize, maxBundleSize_GB, maxBundleSize_MB receiveTimeout, replicationPeriod, 
+replicationPolicy, replicationThreads, sendTimeout, splunk_server, statusQueueSize, title, warnMaxBundleSizePerc 
+              </pre>
+            </div>     
+<div class="mini">
+              <strong>Bundle File Size</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#search_6">Copy</button>
+              </div>
+              <pre id="search_6" class="code">    
+| rest splunk_server=local /services/search/distributed/bundle-replication-files | table size        
+              </pre>
+</div>
+
+
+<div class="mini">  
+              <strong>Shows all users running jobs and disk size</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#search_7">Copy</button>
+              </div>
+              <pre id="search_7" class="code">
+| rest splunk_server=local /services/search/jobs | fields author title, updated, search, runDuration, provenance, 
+latestTime, owner eai:acl.app, diskUsage | rename author AS user eai:acl.app AS app title AS search_code 
+| eval diskUsage_MB = round(diskUsage/1024/1024,2) 
+| table user search_code, updated, search, runDuration, provenance, latestTime, owner, app diskUsage_MB
+              </pre>
+</div>
+
+
+
+           </div>
+</section>
 
 
   <!-- New "Splunk Apps" section (insert after the Search section) -->
@@ -249,7 +517,75 @@ mem, mem_used, available_memory_percent
           <div style="margin-top:8px;color:var(--muted)">
             Review inactive admin users and tokens regularly.
           </div>
-        </section>
+
+          <div class="code-toolbar"><button class="btn" data-copy-target="#a2">Copy</button></div>
+          <strong>This shows the user access and roles details</strong>
+          
+          <pre id="a2" class="code">
+| rest splunk_server=* /services/authentication/users 
+| fields capabilities, defaultApp, email, last_successful_login, locked-out, password, realname, 
+roles, splunk_server, title, type | fieldformat "last_successful_login"=strftime('last_successful_login', "%c") 
+| eval locked-out_status = case(locked-out>=0, "user_locked_out",1=1,"not_locked_out") 
+| eval auth_type = case(type="Splunk", "Splunk Authenticated",1=1,"other Auth") 
+| rename title AS user | table user last_successful_login, defaultApp, email, locked-out_status, password, 
+realname, roles, splunk_server, auth_type, capabilities
+```This shows the user access and roles details```
+
+          </pre>
+          <div >
+<div class="code-toolbar"><button class="btn" data-copy-target="#a3">Copy</button></div>
+          <strong>Users not logged in the last 7 days.</strong>
+          
+          <pre id="a3" class="code">
+| rest splunk_server=* /services/authentication/users
+| fields capabilities, defaultApp, email, last_successful_login, locked-out, password, realname, roles, splunk_server, title, type 
+| fieldformat "last_successful_login"=strftime('last_successful_login', "%c") 
+| where last_successful_login &lt;= relative_time(now(),"-7d") 
+| eval login_status ="This user has not logged in the last 7 days"
+| eval auth_type = case(type="Splunk", "Splunk Authenticated",1=1,"other Auth")
+| rename title AS user
+| table user login_status, last_successful_login, defaultApp, email, locked-out_status, password, realname, roles, splunk_server, auth_type, capabilities
+ ```This checks the user that have not logged in the last 7 days, you can adjust the time period```
+
+          </pre>
+          <div >
+
+
+<div class="code-toolbar"><button class="btn" data-copy-target="#a4">Copy</button></div>
+          <strong>Users that have admin access</strong>
+          <pre id="a4" class="code">
+| rest splunk_server=* /services/authentication/users 
+| fields email, realname, roles, splunk_server, title, last_successful_login 
+| fieldformat "last_successful_login"=strftime('last_successful_login', "%c") 
+| rename title AS user | where (roles LIKE "admin") 
+| table user, email, roles, last_successful_login splunk_server
+          </pre>     
+       </div>
+
+<div class="code-toolbar"><button class="btn" data-copy-target="#a6">Copy</button></div>
+          <strong>List Splunk Server Roles</strong>
+          <pre id="a6" class="code">
+| rest splunk_server=* /services/server/roles | fields splunk_server, title, role_list 
+          </pre>     
+       </div>   
+
+<div class="code-toolbar"><button class="btn" data-copy-target="#a7">Copy</button></div>
+          <strong>List Users Limits</strong>
+          <pre id="a7" class="code">
+ rest /services/admin/quota-usage 
+ | fields srchDiskQuota,diskUsage, srchJobsQuota,historicalSearchCount,rtSrchJobsQuota, realTimeSearchCount,srchMaxTime, title 
+ | search title!=splunk-system-user 
+ | eval diskUsage_MB = round(diskUsage/1024/1024,2) 
+ | eval srchDiskQuota_GB = round(srchDiskQuota/1024,2) 
+ | eval srchMaxTime_Days = srchMaxTime/86400 
+ | rename title AS user 
+ | table user, srchDiskQuota,srchDiskQuota_GB,diskUsage,diskUsage_MB,srchJobsQuota,historicalSearchCount,rtSrchJobsQuota, 
+ realTimeSearchCount,srchMaxTime, srchMaxTime_Days 
+          </pre>
+           
+              
+  
+</section>
 
         <!-- Deployment -->
         <section id="deployment" class="card">
