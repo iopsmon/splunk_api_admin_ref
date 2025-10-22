@@ -76,7 +76,12 @@
           <a href="#apps">Splunk Apps</a>
           <a href="#access">Access & Tokens</a>
           <a href="#deployment">Deployment & Clients</a>
-          <a href="#utils">Utilities / Helpers</a>
+          <a href="#inputs">Inputs</a>
+          <a href="#knowledgobjects">Knowledge Objects</a>
+          <a href="#kvstore">KV Store</a>
+          <a href="#license">Licence</a>
+          <a href="#debug">Debug</a>
+          <a href="#notes">Notes</a>
         </div>
 
         <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
@@ -94,7 +99,7 @@
 
           <div class="code-toolbar">
             <button class="btn" data-copy-target="#cfg1">Copy</button>
-            <button class="btn" onclick="toggle('#cfg1')">Toggle</button>
+           
           </div>
           <pre id="cfg1" class="code" style="display:block">
 | rest splunk_server=local /services/server/sysinfo
@@ -125,6 +130,52 @@ host_resolved, httpport, kvStoreDisabled, kvStorePort, mgmtHostPort, minFreeSpac
 python.version, serverName, sessionTimeout, startwebserver 
               </pre>
             </div>
+
+          
+            <div class="mini">
+              <strong>Props Config - Great 8 Check.</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#cfg3">Copy</button>
+              </div>
+              <pre id="cfg3" class="code">
+| rest splunk_server=local /services/configs/conf-props 
+| fields, title, SHOULD_LINEMERGE, TIMESTAMP_FIELDS, TIME_FORMAT, TIME_PREFIX, TRANSFORMS, MAX_EVENTS, 
+MAX_TIMESTAMP_LOOKAHEAD, KV_MODE, AUTO_KV_JSON, BREAK_ONLY_BEFORE, BREAK_ONLY_BEFORE_DATE, 
+CHARSET, DATETIME_CONFIG, TRUNCATE LINE_BREAKER, EVENT_BREAKER_ENABLE, EVENT_BREAKER description, 
+disabled, category, eai:acl.owner, TZ, INGEST_EVAL 
+| stats list BY title | rename title AS sourcetype list(*) AS * eai:acl.owner AS owner 
+| eval SHOULD_LINEMERGE_CHECK = case(SHOULD_LINEMERGE==0, "no", SHOULD_LINEMERGE==1, "yes") 
+| eval LINE_BREAKER = case(isnull(LINE_BREAKER), "not_set", 1=1, LINE_BREAKER), 
+TIME_PREFIX = case(isnull(TIME_PREFIX), "not_set", 1=1, TIME_PREFIX), 
+TIME_FORMAT = case(isnull(TIME_FORMAT), "not_set", 1=1, TIME_FORMAT), 
+MAX_TIMESTAMP_LOOKAHEAD = case(isnull(MAX_TIMESTAMP_LOOKAHEAD), "not_set", 1=1, MAX_TIMESTAMP_LOOKAHEAD), 
+TIMESTAMP_FIELDS = case(isnull(TIMESTAMP_FIELDS), "not_set", 1=1, TIMESTAMP_FIELDS) 
+| table, sourcetype, SHOULD_LINEMERGE, SHOULD_LINEMERGE_CHECK LINE_BREAKER, TIME_PREFIX, 
+TIME_FORMAT, MAX_TIMESTAMP_LOOKAHEAD, TRUNCATE, TIMESTAMP_FIELDS, TRANSFORMS, MAX_EVENTS, KV_MODE, 
+AUTO_KV_JSON, BREAK_ONLY_BEFORE, BREAK_ONLY_BEFORE_DATE, CHARSET, DATETIME_CONFIG, EVENT_BREAKER_ENABLE, 
+EVENT_BREAKER, description, disabled, category, owner, TZ, INGEST_EVAL 
+              </pre>
+            </div>
+
+<div class="mini">
+              <strong>Transforms Config Check</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#cfg4">Copy</button>
+              </div>
+              <pre id="cfg4" class="code">
+| rest splunk_server=local /services/configs/conf-transforms 
+```| search eai:acl.app=(Add your app here)``` 
+| rename eai:acl.app AS app eai:acl.perms.read AS read_permisions eai:acl.perms.write AS write_permissions 
+eai:acl.sharing AS sharing title AS stanza 
+| table app, stanza read_permisions write_permissions, sharing, CAN_OPTIMIZE, CLEAN_KEYS, DEFAULT_VALUE, 
+DELIMS, DEPTH_LIMIT, DEST_KEY, FORMAT, INGEST_EVAL, KEEP_EMPTY_VALS, LOOKAHEAD, MATCH_LIMIT, METRIC-SCHEMA-BLACKLIST-DIMS, 
+METRIC-SCHEMA-MEASURES, MV_ADD, REGEX, REPEAT_MATCH, SOURCE_KEY, WRITE_META, collection, disabled, external_cmd, 
+external_type, fields_list, filename 
+```This search checks for the transforms config``` 
+
+              </pre>
+            </div>
+
 
 
         </section>
@@ -158,7 +209,7 @@ python.version, serverName, sessionTimeout, startwebserver
 | eval cpu_flag = if(pct_cpu >= 80, "high", "ok")
 | table splunk_server, process, pct_cpu, cpu_flag, pct_memory, mem_used
               </pre>
-            </div>
+            
                     <div class="mini">
               <strong>CPU Idle And Memory Check</strong>
               <div class="code-toolbar" style="margin-top:8px">
@@ -593,6 +644,7 @@ realname, roles, splunk_server, auth_type, capabilities
           <p class="lead">Deployment clients and phone-home checks.</p>
 
           <div class="code-toolbar"><button class="btn" data-copy-target="#d1">Copy</button></div>
+          <strong>Deployment Cients 15min Check</strong>
           <pre id="d1" class="code">
 | rest splunk_server=* /services/deployment/server/clients
 | fields hostname, lastPhoneHomeTime, splunkVersion, ip
@@ -600,12 +652,224 @@ realname, roles, splunk_server, auth_type, capabilities
 | eval status = if(lastPhoneHomeTime &lt; (now() - 900), "missing", "active")
 | table hostname, status, lastPhoneHomeTime, splunkVersion, ip
           </pre>
+
+          <div class="code-toolbar"><button class="btn" data-copy-target="#d2">Copy</button></div>
+          <strong>Deployment Cients</strong>
+          <pre id="d2" class="code">
+| rest splunk_server=* /services/deployment/server/clients 
+| fields averagePhoneHomeInterval, dns, eai:acl.owner, hostname, instanceId, instanceName, ip, lastPhoneHomeTime, mgmt, 
+package, splunkVersion, splunk_server, utsname 
+| fieldformat "lastPhoneHomeTime"=strftime('lastPhoneHomeTime', "%c") 
+| table hostname, averagePhoneHomeInterval, lastPhoneHomeTime, dns, ip, instanceName, eai:acl.owner, instanceId, 
+mgmt, package, splunkVersion, utsname, splunk_server 
+          </pre>
+
+          <div class="code-toolbar"><button class="btn" data-copy-target="#d3">Copy</button></div>
+          <strong>Deployment Apps</strong>
+          <pre id="d3" class="code">
+| rest /services/deployment/server/applications 
+| fields archive, author, checksum, eai:acl.app, eai:acl.owner, issueReload, loadtime, restartIfNeeded, restartSplunkWeb, 
+restartSplunkd, serverclasses, size, splunk_server, stateOnClient, title 
+| mvexpand serverclasses 
+| mvexpand archive 
+| mvexpand size | eval app_size_MB = size/1024 
+| dedup serverclasses | rename title AS deployment_app 
+| table splunk_server, deployment_app app_size_MB, serverclasses, archive, author, checksum, eai:acl.app, eai:acl.owner, 
+issueReload, loadtime, restartIfNeeded, restartSplunkWeb, restartSplunkd, size, stateOnClient  
+          </pre>
+
         </section>
 
-        <!-- Utilities -->
-        <section id="utils" class="card">
-          <h2>Utilities & Export</h2>
-          <p class="lead">Exporting results & recommended cadence.</p>
+<!-- New "Inputs " section  -->
+  <section id="inputs" class="card">
+    <h2>Inputs</h2>
+    <p class="lead">Lists all the inputs</p>
+    <div class="code-toolbar">
+      <button class="btn" data-copy-target="#i1">Copy</button>
+     </div>
+    <pre id="i1" class="code" style="display:block">
+| rest splunk_server=* /services/data/inputs/all 
+| fields author,blacklist,cipherSuite,disabled,eai:acl.app,eai:acl.owner,eai:acl.sharing,
+eai:location,group,host_resolved,index,passAuth,password,python.version,requireClientCert,
+rootCA,serverCert,source,sourcetype,splunk_server,sslVersions,title,ttl_days,whitelist 
+| eval input_is_enabled = case(disabled >=1, "disabled",1=1, "enabled") 
+| rename eai:acl.app AS app, eai:acl.owner AS owner, eai:acl.sharing AS sharing, eai:location AS location 
+| table splunk_server, app,owner,whitelist, blacklist,,cipherSuite,disabled,input_is_enabled,
+sharing,location,group,host_resolved,index,passAuth,password,python.version,requireClientCert,
+rootCA,serverCert,source,sourcetype,sslVersions,title,ttl_days,whitelist 
+    </pre>
+
+    <div class="mini">
+              <strong>List Hec Inputs</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#i2">Copy</button>
+              </div>
+              <pre id="i2" class="code">
+| rest splunk_server=* /services/data/inputs/http 
+| fields allowQueryStringAuth,author,disabled,eai:acl.app,eai:acl.owner,eai:acl.sharing,index,indexes,sourcetype,splunk_server,title,token 
+| eval hec_input_is_enabled = case(disabled >=1, "disabled",1=1, "enabled") 
+| rename title AS hec_name eai:acl.app AS app, eai:acl.owner AS owner, eai:acl.sharing AS sharing 
+| table splunk_server,hec_name, allowQueryStringAuth,app,owner,sharing,index,indexes,sourcetype,token,author,hec_input_is_enabled,disabled 
+              </pre>
+            </div>  
+
+
+  <!-- New "KO " section  -->
+  <section id="knowledgobjects" class="card">
+    <h2>Knowledge Objects</h2>
+    <p class="lead">List Lookups</p>
+    <div class="code-toolbar">
+      <button class="btn" data-copy-target="#ko1">Copy</button>
+     </div>
+    <pre id="ko1" class="code" style="display:block">
+| rest splunk_server=* /services/data/lookup-table-files/ 
+| fields author,disabled,eai:acl.app,eai:acl.owner,eai:acl.perms.read,eai:acl.sharing,eai:appName,
+eai:data,splunk_server,title 
+| rename eai:acl.app AS app, eai:acl.owner AS owner, eai:acl.perms.read AS read eai:acl.sharing AS sharing, 
+eai:appName AS app_name, eai:data AS file_location title AS lookup_file_name 
+| table splunk_server,lookup_file_name,author,disabled,app,owner,read,sharing,app_name,file_location 
+    </pre>
+
+    
+              <strong>List Lookups - Commands</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#ko2">Copy</button>
+              </div>
+              <pre id="ko2" class="code">
+| rest splunk_server=* /services/data/lookup-table-files/ 
+| fields author,disabled,eai:acl.app,eai:acl.owner,eai:acl.perms.read,eai:acl.sharing,eai:appName,eai:data,splunk_server,title 
+| rename eai:acl.app AS app, eai:acl.owner AS owner, eai:acl.perms.read AS read eai:acl.sharing AS sharing, eai:appName AS app_name,
+ eai:data AS file_location title AS lookup_file_name 
+| table splunk_server,lookup_file_name,author,disabled,app,owner,read,sharing,app_name,file_location
+ 
+              </pre>
+   
+              <strong>List Datamodels</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#ko3">Copy</button>
+              </div>
+              <pre id="ko3" class="code">
+| rest splunk_server=* /services/datamodel/model 
+| fields acceleration,displayName,eai:appName,eai:userName
+| rex field=acceleration "(?&lt;dm_enabled&gt;\{\"enabled\":true,\"|\{\"enabled\":false,\")"
+| rex field=acceleration "\"cron_schedule\":\"(?&lt;cron_schedule&gt;[^\"]+)\""
+| eval dm_enabled = if(dm_enabled=="{\"enabled\":true,\"", "enabled", "disabled") 
+| rename  displayName AS data_model, cron_schedule AS cron_job 
+| table  data_model,cron_job,acceleration,dm_enabled
+ 
+              </pre>
+
+                
+              <strong>List Event Types</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#ko4">Copy</button>
+              </div>
+              <pre id="ko4" class="code">
+ | rest splunk_server=* /services/saved/eventtypes 
+| fields splunk_server,tags,title,disabled,eai:acl.app,eai:acl.owner,eai:acl.sharing,search 
+| rename eai:acl.app AS app, eai:acl.owner AS owner, eai:acl.perms.read AS read, eai:acl.sharing AS sharing title AS event_type 
+| eval is_enabled = case(disabled &gt;=1, "disabled",1=1, "enabled") 
+| rex field=search "(?&lt;index_used&gt;index\s*=\s*[^ ]+|index\s+IN|search\s*=\s*index=|search\s*=\s*inputlookup\s+in|index\s*=_\*)"
+| eval index_star_all_check = case(
+    isnull(index_used), "no_index_found",
+    index_used="index=*", "naughty_boy",
+    true(), "good_boy"
+    ) 
+| table splunk_server,tags,event_type,disabled,is_enabled, app,owner,sharing,search, index_used, index_star_all_check
+```This lists all the event types and also shows if any are using index=*```
+ 
+              </pre>
+               
+              <strong>List Macros</strong>
+              <div class="code-toolbar" style="margin-top:8px">
+                <button class="btn" data-copy-target="#ko5">Copy</button>
+              </div>
+              <pre id="ko5" class="code">
+| rest servicesNS/nobody/search/configs/conf-macros 
+| fields args,author,definition,disabled,eai:acl.app,eai:acl.owner,eai:acl.sharing,iseval,splunk_server,title,validation 
+| rename eai:acl.app AS app, eai:acl.owner AS owner, eai:acl.sharing AS sharing 
+| table splunk_server,args,author,definition,disabled,app,owner,sharing,iseval,title,validation 
+ 
+              </pre>
+
+   </section>
+
+  <!-- New "KV Store " section  -->
+  <section id="kvstore" class="card">
+    <h2>KV Store</h2>
+    <p class="lead">Current Status</p>
+    <div class="code-toolbar">
+      <button class="btn" data-copy-target="#kv1">Copy</button>
+     </div>
+    <pre id="kv1" class="code" style="display:block">
+| rest splunk_server=* /services/kvstore/status 
+| fields author,current.backupRestoreStatus,current.date,current.disabled,current.guid,current.port,
+current.replicaSet,current.replicationStatus,current.standalone,current.status,current.storageEngine,members.0.electionDate,
+members.0.electionDateSec,members.0.hostAndPort,members.0.lastHeartbeat,members.0.lastHeartbeatRecv,members.0.lastHeartbeatRecvSec,
+members.0.lastHeartbeatSec,members.0.optimeDate,members.0.optimeDateSec,members.0.pingMs,members.0.replicationStatus,members.0.uptime,splunk_server 
+| rename "current.backupRestoreStatus" AS current_backupRestoreStatus,"current.date" AS current_date,"current.disabled" AS current_disabled,
+"current.guid" AS current_guid,"current.port" AS current_port,"current.replicaSet" AS current_replicaSet,"current.replicationStatus" AS current_replicationStatus,
+"current.standalone" AS current_standalone,"current.status" AS current_status,"current.storageEngine" AS current_storageEngine,
+"members.0.electionDate" AS members_0_electionDate,"members.0.electionDateSec" AS members_0_electionDateSec,
+"members.0.hostAndPort" AS members_0_hostAndPort,"members.0.lastHeartbeat" AS members_0_lastHeartbeat,
+"members.0.lastHeartbeatRecv" AS members_0_lastHeartbeatRecv, "members.0.lastHeartbeatRecvSec" AS members_0_lastHeartbeatRecvSec,
+"members.0.lastHeartbeatSec" AS members_0_lastHeartbeatSec,"members.0.optimeDate" AS members_0_optimeDate,"members.0.optimeDateSec" AS members_0_optimeDateSec,
+"members.0.pingMs" AS members_0_pingMs,"members.0.replicationStatus" AS members_0_replicationStatus,"members.0.uptime" AS members_0_uptime 
+| table splunk_server, current_backupRestoreStatus,current_date,current_disabled,current_guid,current_port,current_replicaSet,
+current_replicationStatus,current_standalone,current_status,current_storageEngine,members_0_electionDate,members_0_electionDateSec,
+members_0_hostAndPort,members_0_lastHeartbeat,members_0_lastHeartbeatRecv,members_0_lastHeartbeatRecvSec,members_0_lastHeartbeatSec,
+members_0_optimeDate,members_0_optimeDateSec,members_0_pingMs,members_0_replicationStatus,members_0_uptime
+    </pre>
+
+  </section>
+
+<!-- "Licence  " section  -->
+  <section id="license" class="card">
+    <h2>Licence</h2>
+    <p class="lead">Current Status</p>
+    <div class="code-toolbar">
+      <button class="btn" data-copy-target="#lic1">Copy</button>
+     </div>
+    <pre id="lic1" class="code" style="display:block">
+| rest splunk_server=* /services/licenser/licenses 
+| fields add_ons.itsi.guid,add_ons.itsi.size,allowedRoles,assignableRoles,author,creation_time,
+disabled_features,expiration_time,features,group_id,guid,id,is_unlimited,label,license_hash,
+max_retention_size,max_stack_quota,max_users,max_violations,notes,published,quota,
+relative_expiration_interval,relative_expiration_start,sourcetypes,splunk_server,stack_id,
+status,subgroup_id,title,type,window_period 
+| eval ingest_lic_GB = quota/1024/1024/1024 
+| eval creation_time_epoch = creation_time, expiration_time_epoch = expiration_time, 
+licence_term_days = round((expiration_time_epoch - creation_time_epoch) / (60 * 60 * 24)) 
+| fieldformat "creation_time"=strftime('creation_time', "%c") 
+| fieldformat "expiration_time"=strftime('expiration_time', "%c") 
+| table splunk_server,ingest_lic_GB,licence_term_days,add_ons.itsi.guid,add_ons.itsi.size,
+allowedRoles,assignableRoles,author,creation_time,disabled_features,expiration_time,
+features,group_id,guid,is_unlimited,label,license_hash,max_retention_size,max_stack_quota,
+max_users,max_violations,notes,published,quota,relative_expiration_interval,relative_expiration_start,
+sourcetypes,stack_id,status,subgroup_id,title,type,window_period
+    </pre>
+
+  </section>
+  <!-- "Debug  " section  -->
+  <section id="debug" class="card">
+    <h2>Log Setting Debug</h2>
+    <p class="lead">Current Status</p>
+    <div class="code-toolbar">
+      <button class="btn" data-copy-target="#db1">Copy</button>
+     </div>
+    <pre id="db1" class="code" style="display:block">
+| rest splunk_server=* /services/server/logger 
+| fields author,buffering,level,splunk_server,title
+| rename title AS logger | table splunk_server,level,logger
+    </pre>
+
+  </section>
+
+
+        <!-- Notes -->
+        <section id="notes" class="card">
+          <h2>Notes</h2>
+          <p class="lead">Notes & Recommended</p>
 
           <table class="ref">
             <thead><tr><th>Action</th><th>Recommendation</th></tr></thead>
@@ -620,6 +884,7 @@ realname, roles, splunk_server, auth_type, capabilities
 
         <footer>
           <div>Generated: <strong><span id="genTime"></span></strong> — Keep this page as a quick reference. Copy the SPL above and paste into the Splunk Search bar.</div>
+           <div>iOpsmon: <strong></strong> — Deepak Chohan Splunk Enginneer</div>
         </footer>
       </main>
     </div>
