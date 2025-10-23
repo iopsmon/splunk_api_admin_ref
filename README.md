@@ -15,14 +15,19 @@ Key features
 
 Sections included
 -----------------
-- Config & TLS checks
-- Host and Splunk process resource usage
+- Config Checks  
+- Host and Splunk Resource Usage
 - Storage / Index metrics and retention
 - Saved searches and search analysis
 - Splunk Apps (installed apps and metadata)
 - Access & tokens (user and role checks)
 - Deployment / client phone-home checks
-- Utilities & recommended export cadence
+- Inputs Checks 
+- Knowledge Objects Checks 
+- KV Store 
+- Licence 
+- Debug Settings 
+- Notes 
 
 Usage
 -----
@@ -44,7 +49,7 @@ Deployment
 
 Author / Attribution
 --------------------
-Created for Splunk administrators. Filename: `dc_splunk_api_guide.html`
+Created for Splunk administrators By Deepak Chohan Splunk Engineer. Filename: `dc_splunk_api_guide.html`
 
 License
 -------
